@@ -1,0 +1,5 @@
+/target
+*.jpg
+*.jpg.json
+*.json
+*.png

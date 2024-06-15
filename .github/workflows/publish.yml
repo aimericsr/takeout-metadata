@@ -1,0 +1,57 @@
+name: Publish
+on:
+  push:
+    tags:
+      - "*"
+
+env:
+  CLICOLOR_FORCE: 1
+
+jobs:
+  build:
+    name: Publish for ${{ matrix.binary_target }}
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            binary_target: x86_64-unknown-linux-musl
+          - os: ubuntu-latest
+            binary_target: x86_64-unknown-linux-gnu
+          # - os: windows-latest
+          #   binary_target: x86_64-pc-windows-msvc
+          - os: macos-latest
+            binary_target: aarch64-apple-darwin
+          - os: macos-latest
+            binary_target: x86_64-apple-darwin
+    steps:
+      - name: Install musl tools
+        if: matrix.os == 'ubuntu-latest'
+        run: sudo apt-get install musl-tools
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Update rust
+        run: |
+          rustup override set stable
+          rustup update stable
+          rustup target add ${{ matrix.binary_target }}
+      - name: Build Binary
+        run: cargo build --release --target ${{ matrix.binary_target }}
+      - name: Tar
+        run: tar -cvzf target/${{ matrix.binary_target }}/release/takeout-metadata.tar.gz target/${{ matrix.binary_target }}/release/takeout-metadata
+      - name: Upload Binaries
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: target/${{ matrix.binary_target }}/release/takeout-metadata.tar.gz
+          asset_name: ${{ matrix.binary_target }}
+          tag: ${{ github.ref }}
+          # overwrite: true
+          # file_glob: true
+    # - name: Upload Binaries and make a release
+    #   uses: ncipollo/release-action@v1
+    #   with:
+    #     artifacts: "target/release/takeout-metadata"
